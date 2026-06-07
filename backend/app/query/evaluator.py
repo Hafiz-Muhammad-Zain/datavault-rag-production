@@ -99,7 +99,6 @@ def _run_ragas_in_thread(question: str, answer: str, contexts: list[str], openai
 
         import math
         scores = result.to_pandas()
-        logger.info(f"RAGAS raw scores: {scores.to_dict()}")
 
         def _clean(val):
             if val is None:
