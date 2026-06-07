@@ -268,8 +268,11 @@ async def _needs_rag(question: str, chat_history=None) -> bool:
                 "Also classify as COMPLIANCE any factual question about DataVault GmbH specifically "
                 "(prices, salaries, financials, personnel, internal details) — these must go through "
                 "document lookup, not be answered from general knowledge.\n"
-                "CONVERSATIONAL: ONLY greetings (hello, hi), thank you messages, farewells, or questions "
-                "about what the assistant can do — and ONLY when there is no compliance topic in history.\n"
+                "CONVERSATIONAL: greetings (hi, hey, hello, hy, hiya), thank you messages, farewells, "
+                "profanity/gibberish (wtf, lol, ok, cool, nice), or questions about what the assistant "
+                "can do. Greetings and gibberish are ALWAYS CONVERSATIONAL even if compliance topics "
+                "appear in the conversation history — history context only applies to genuine follow-up "
+                "phrases like 'explain more', 'give an example', 'what about X'.\n"
                 "Reply with exactly one word: COMPLIANCE or CONVERSATIONAL."
             )
         }
