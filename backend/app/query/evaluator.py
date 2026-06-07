@@ -156,6 +156,7 @@ async def evaluate_and_store(
 
         scores = result_holder["scores"]
 
+        print(f"RAGAS_DEBUG inserting to DB: log_id={query_log_id} faith={scores['faithfulness']} rel={scores['answer_relevancy']}", flush=True)
         async with engine.begin() as conn:
             await conn.execute(
                 text("""
@@ -169,11 +170,7 @@ async def evaluate_and_store(
                     "answer_relevancy": scores["answer_relevancy"],
                 }
             )
-
-        logger.info(
-            f"RAGAS eval complete — log_id={query_log_id} "
-            f"faithfulness={scores['faithfulness']} relevancy={scores['answer_relevancy']}"
-        )
+        print(f"RAGAS_DEBUG DB insert OK: log_id={query_log_id}", flush=True)
 
     except Exception as e:
         logger.warning(f"RAGAS eval failed for query_log_id={query_log_id}: {e}")
