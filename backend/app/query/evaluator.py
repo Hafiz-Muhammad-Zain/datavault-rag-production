@@ -156,7 +156,11 @@ async def evaluate_and_store(
 
         scores = result_holder["scores"]
 
-        print(f"RAGAS_DEBUG inserting to DB: log_id={query_log_id} faith={scores['faithfulness']} rel={scores['answer_relevancy']}", flush=True)
+        # Cast to plain Python float — numpy.float64 from pandas can silently
+        # insert as NULL in some SQLAlchemy versions
+        faith_val = float(scores["faithfulness"]) if scores["faithfulness"] is not None else None
+        rel_val = float(scores["answer_relevancy"]) if scores["answer_relevancy"] is not None else None
+        print(f"RAGAS_DEBUG inserting: log_id={query_log_id} faith={faith_val} ({type(faith_val).__name__}) rel={rel_val} ({type(rel_val).__name__})", flush=True)
         async with engine.begin() as conn:
             await conn.execute(
                 text("""
@@ -166,8 +170,8 @@ async def evaluate_and_store(
                 {
                     "id": str(uuid.uuid4()),
                     "query_log_id": query_log_id,
-                    "faithfulness": scores["faithfulness"],
-                    "answer_relevancy": scores["answer_relevancy"],
+                    "faithfulness": faith_val,
+                    "answer_relevancy": rel_val,
                 }
             )
         print(f"RAGAS_DEBUG DB insert OK: log_id={query_log_id}", flush=True)
