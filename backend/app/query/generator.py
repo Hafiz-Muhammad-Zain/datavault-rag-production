@@ -33,7 +33,8 @@ STRICT RULES:
 4. If the context contains PARTIAL information, answer what you can from the chunks — do not refuse just because the answer is incomplete.
 5. Only set "answer" to null if the context has NO relevant information at all for the question.
 6. Do NOT give general advice not sourced from the chunks. But synthesizing a clear explanation from chunk content is allowed — cite the chunks you used.
-7. Return ONLY valid JSON matching the exact schema below. No markdown, no explanation outside JSON.
+7. If "answer" is not null, "citations" MUST be non-empty — you must cite every chunk you used. An answer without citations is a policy violation.
+8. Return ONLY valid JSON matching the exact schema below. No markdown, no explanation outside JSON.
 
 RESPONSE SCHEMA:
 {

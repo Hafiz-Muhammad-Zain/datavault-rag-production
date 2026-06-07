@@ -271,9 +271,11 @@ async def _needs_rag(question: str, chat_history=None) -> bool:
                 "in history — treat as a request to understand the tool's compliance implications.\n"
                 "Also COMPLIANCE: any factual question about DataVault GmbH specifically "
                 "(prices, salaries, financials, personnel, internal details).\n"
-                "CONVERSATIONAL: ONLY pure greetings (hi, hey, hello, hy, hiya), thank you, farewells, "
-                "reactions (ok, cool, nice, lol, wtf) with no follow-up intent, or questions about "
-                "what the assistant can do. These are ALWAYS CONVERSATIONAL regardless of history.\n"
+                "CONVERSATIONAL: ONLY pure greetings (hi, hey, hello, hy, hiya, good morning, good afternoon), "
+                "thank you, farewells, emotional reactions and exclamations (ok, cool, nice, lol, wtf, wtf is going on, "
+                "omg, wow, damn, seriously, really, huh, what the hell, that's crazy, interesting), "
+                "or questions about what the assistant can do. "
+                "These are ALWAYS CONVERSATIONAL regardless of history — even if compliance topics appeared before.\n"
                 "Reply with exactly one word: COMPLIANCE or CONVERSATIONAL."
             )
         }
