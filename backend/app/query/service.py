@@ -56,7 +56,7 @@ async def process_query(request: QueryRequest, db: AsyncSession) -> QueryRespons
     # ── STAGE 1: RETRIEVE ──────────────────────────────────────────────
     # Theory: embed the question, search by meaning AND keyword, merge with RRF
     t_retrieval_start = time.time()
-    merged_chunks, top_rrf_score, expanded_query = await retrieve(request.question, db)
+    merged_chunks, top_rrf_score, expanded_query = await retrieve(request.question, db, request.chat_history)
     latency_retrieval_ms = int((time.time() - t_retrieval_start) * 1000)
 
     # ── STAGE 2: RERANK ────────────────────────────────────────────────
@@ -262,17 +262,18 @@ async def _needs_rag(question: str, chat_history=None) -> bool:
                 "COMPLIANCE: any question about data protection, privacy, GDPR, BDSG, AI tools at work, "
                 "employee data, customer data, data sharing, data breaches, retention periods, consent, "
                 "legal basis, company policies, workplace rules, software usage at work, or anything "
-                "that could have a compliance or legal implication. Also classify as COMPLIANCE if the "
-                "message is a follow-up to a compliance topic in the conversation history "
-                "(e.g. 'find a summary', 'explain more', 'what about X', 'give me an example'). "
-                "Also classify as COMPLIANCE any factual question about DataVault GmbH specifically "
-                "(prices, salaries, financials, personnel, internal details) — these must go through "
-                "document lookup, not be answered from general knowledge.\n"
-                "CONVERSATIONAL: greetings (hi, hey, hello, hy, hiya), thank you messages, farewells, "
-                "profanity/gibberish (wtf, lol, ok, cool, nice), or questions about what the assistant "
-                "can do. Greetings and gibberish are ALWAYS CONVERSATIONAL even if compliance topics "
-                "appear in the conversation history — history context only applies to genuine follow-up "
-                "phrases like 'explain more', 'give an example', 'what about X'.\n"
+                "that could have a compliance or legal implication.\n"
+                "Also COMPLIANCE: pronoun follow-ups when the prior topic was compliance "
+                "('can i use it', 'is it allowed', 'what about it', 'can we do that', 'is that legal', "
+                "'what does it say', 'tell me more', 'explain more', 'give an example').\n"
+                "Also COMPLIANCE: questions about any software tool or service in a work context "
+                "('what is ChatGPT', 'what is Slack', 'what is Notion') when compliance topics appear "
+                "in history — treat as a request to understand the tool's compliance implications.\n"
+                "Also COMPLIANCE: any factual question about DataVault GmbH specifically "
+                "(prices, salaries, financials, personnel, internal details).\n"
+                "CONVERSATIONAL: ONLY pure greetings (hi, hey, hello, hy, hiya), thank you, farewells, "
+                "reactions (ok, cool, nice, lol, wtf) with no follow-up intent, or questions about "
+                "what the assistant can do. These are ALWAYS CONVERSATIONAL regardless of history.\n"
                 "Reply with exactly one word: COMPLIANCE or CONVERSATIONAL."
             )
         }

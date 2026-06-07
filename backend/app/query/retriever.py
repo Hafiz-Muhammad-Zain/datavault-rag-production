@@ -29,7 +29,7 @@ client = AsyncOpenAI(api_key=settings.openai_api_key)
 RRF_K = 60  # RRF constant — prevents top-ranked docs from dominating
 
 
-async def rewrite_query(question: str) -> str:
+async def rewrite_query(question: str, chat_history=None) -> str:
     """
     Expand a short or ambiguous question into a full natural language query
     before embedding. This improves semantic search significantly.
@@ -48,25 +48,37 @@ async def rewrite_query(question: str) -> str:
 
     Cost: one tiny GPT-4o-mini call (~50 tokens) added per query.
     """
-    if len(question.split()) >= 8:
-        # Already a full question — no need to expand
+    if len(question.split()) >= 8 and not any(
+        p in question.lower() for p in ["it", "this", "that", "they", "them", "its"]
+    ):
+        # Long enough and no pronouns — no need to expand
         return question
+
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You are a query expansion assistant for a GDPR and data protection compliance system. "
+                "Rewrite the user's short or pronoun-heavy question into a detailed natural language search query "
+                "that will find the right legal text in GDPR documents and company data protection policies. "
+                "If the question contains pronouns (it, this, that, they), resolve them using the conversation history. "
+                "Expand acronyms (GDPR = General Data Protection Regulation, BDSG = Bundesdatenschutzgesetz). "
+                "Return ONLY the expanded query — no explanation, no quotes."
+            )
+        }
+    ]
+
+    # Include last 4 history messages so pronouns can be resolved
+    if chat_history:
+        for msg in chat_history[-4:]:
+            if msg.content and msg.content.strip():
+                messages.append({"role": msg.role, "content": msg.content})
+
+    messages.append({"role": "user", "content": question})
 
     response = await client.chat.completions.create(
         model="gpt-4o-mini",
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    "You are a query expansion assistant for a GDPR and data protection compliance system. "
-                    "Rewrite the user's short question into a detailed natural language search query "
-                    "that will find the right legal text in GDPR documents and company data protection policies. "
-                    "Expand acronyms (GDPR = General Data Protection Regulation, BDSG = Bundesdatenschutzgesetz). "
-                    "Return ONLY the expanded query — no explanation, no quotes."
-                )
-            },
-            {"role": "user", "content": question}
-        ],
+        messages=messages,
         temperature=0.0,
         max_tokens=120,
     )
@@ -257,6 +269,7 @@ def reciprocal_rank_fusion(
 async def retrieve(
     question: str,
     db=None,  # kept for API compatibility but no longer used — each search opens its own connection
+    chat_history=None,
 ) -> tuple[list[dict], float, str]:
     """
     Full retrieval pipeline:
@@ -268,8 +281,8 @@ async def retrieve(
     Returns: (merged_chunks, top_rrf_score)
     top_rrf_score is used by the confidence gate in the query service.
     """
-    # Expand short/ambiguous questions before searching
-    expanded = await rewrite_query(question)
+    # Expand short/ambiguous questions before searching — pass history for pronoun resolution
+    expanded = await rewrite_query(question, chat_history)
 
     # Embed the expanded query for semantic search
     query_vector = await embed_query(expanded)
