@@ -1,7 +1,8 @@
 # DataVault Compliance RAG — Production Hybrid RAG + Observability Dashboard
 
 **Status: COMPLETE**
-**Live Demo (Dashboard):** (https://datavault-rag-production-h75n20gp2-zainsverse-s-projects.vercel.app/logs)  
+**Live Demo (Dashboard):** https://datavault-rag-production-h75n20gp2-zainsverse-s-projects.vercel.app/
+**Backend API:** https://jcocc4w8gc0o8cwso0gcs0k4.89.167.8.101.sslip.io (Hetzner VPS via Coolify)
 **Niche:** Compliance / GDPR | Hallucination Prevention | Hybrid Search | Live RAGAS Evaluation
 
 ---
@@ -29,7 +30,7 @@ A production-grade Hybrid RAG system built for DataVault GmbH — a fictional co
 ## Screenshots
 
 ### Observability Dashboard — Live RAGAS Scores, Latency Charts, Query Log
-![Observability Dashboard](screenshots/dashboard.png)
+![Observability Dashboard](preview.webp)
 
 > 55 total queries · 83.6% answer rate · 76.8% faithfulness · 77.6% relevancy · all scored automatically without human labeling
 
