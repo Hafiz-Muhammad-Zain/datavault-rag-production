@@ -1,7 +1,8 @@
 # DataVault Compliance RAG — Production Hybrid RAG + Observability Dashboard
 
 **Status: COMPLETE**
-**Live Demo:** https://datavault-rag-production-h75n20gp2-zainsverse-s-projects.vercel.app/
+**Live Demo (Dashboard):** https://datavault-rag-production-h75n20gp2-zainsverse-s-projects.vercel.app/
+**Backend API:** https://jcocc4w8gc0o8cwso0gcs0k4.89.167.8.101.sslip.io (Hetzner VPS via Coolify)
 **Niche:** Compliance / GDPR | Hallucination Prevention | Hybrid Search | Live RAGAS Evaluation
 
 ---
@@ -181,7 +182,8 @@ datavault-rag-production/
 | Reranking | rank-bm25 | Free, fast, no API calls |
 | Evaluation | RAGAS 0.2.x | Reference-free faithfulness + answer relevancy |
 | Dashboard | Next.js 14 + Recharts | Live polling every 5 seconds |
-| Deployment | Vercel (dashboard) + Docker (DB) | Dashboard live, DB containerized |
+| Backend deployment | Hetzner VPS via Coolify | Self-hosted, Docker containerized |
+| Dashboard deployment | Vercel | Live frontend, zero config |
 
 ---
 
