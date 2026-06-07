@@ -146,7 +146,10 @@ async def process_query(request: QueryRequest, db: AsyncSession, background_task
         )
 
     # ── STAGE 5: LOG ──────────────────────────────────────────────────────
+    # Generate log_id here so we can pass it to RAGAS without a DB lookup
+    log_id = str(uuid.uuid4())
     await _log_query(
+        log_id=log_id,
         query_text=request.question,
         retrieved_chunk_ids=[c["id"] for c in top_chunks],
         retrieval_scores=[c.get("rrf_score", 0) for c in top_chunks],
@@ -164,23 +167,19 @@ async def process_query(request: QueryRequest, db: AsyncSession, background_task
     )
 
     # ── STAGE 6: RAGAS EVAL (background) ──────────────────────────────────────
-    # Fire RAGAS with full chunk texts — NOT citation excerpts.
-    # Citation excerpts are 1-2 sentences; RAGAS needs the full chunk to verify
-    # every claim in the answer. Short contexts produce faithfulness=0 or NaN.
+    # Use log_id generated above — no DB lookup needed, no risk of None.
+    # Pass full chunk texts, not citation excerpts (excerpts are too short for RAGAS).
     if background_tasks and generated["answer"]:
         from app.query.evaluator import evaluate_and_store
-        from app.logs.service import get_latest_log_id
         full_contexts = [c["chunk_text"] for c in top_chunks if c.get("chunk_text")]
         if full_contexts:
-            log_id = await get_latest_log_id(db=db, question=request.question)
-            if log_id:
-                background_tasks.add_task(
-                    evaluate_and_store,
-                    query_log_id=log_id,
-                    question=request.question,
-                    answer=generated["answer"],
-                    contexts=full_contexts,
-                )
+            background_tasks.add_task(
+                evaluate_and_store,
+                query_log_id=log_id,
+                question=request.question,
+                answer=generated["answer"],
+                contexts=full_contexts,
+            )
 
     return QueryResponse(
         answered=True,
@@ -216,6 +215,7 @@ async def _gpt_direct(question: str, chat_history) -> str:
 
 
 async def _log_query(
+    log_id: str | None = None,
     query_text: str = "",
     retrieved_chunk_ids: list = [],
     retrieval_scores: list = [],
@@ -263,7 +263,7 @@ async def _log_query(
                 )
             """),
             {
-                "id": str(uuid.uuid4()),
+                "id": log_id or str(uuid.uuid4()),
                 "query_text": query_text,
                 "retrieved_chunk_ids": retrieved_chunk_ids,
                 "retrieval_scores": retrieval_scores,
