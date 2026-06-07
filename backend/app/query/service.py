@@ -169,7 +169,7 @@ async def process_query(request: QueryRequest, db: AsyncSession, background_task
     # ── STAGE 6: RAGAS EVAL (background) ──────────────────────────────────────
     # Use log_id generated above — no DB lookup needed, no risk of None.
     # Pass full chunk texts, not citation excerpts (excerpts are too short for RAGAS).
-    if background_tasks and generated["answer"]:
+    if background_tasks is not None and generated["answer"]:
         from app.query.evaluator import evaluate_and_store
         full_contexts = [c["chunk_text"] for c in top_chunks if c.get("chunk_text")]
         if full_contexts:
