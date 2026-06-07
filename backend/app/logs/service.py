@@ -93,8 +93,8 @@ async def get_eval_health(db: AsyncSession) -> dict:
         text("""
             SELECT
                 COUNT(*) AS total_evaluated,
-                ROUND(AVG(faithfulness)::NUMERIC, 3) AS avg_faithfulness,
-                ROUND(AVG(answer_relevancy)::NUMERIC, 3) AS avg_answer_relevancy
+                ROUND(AVG(faithfulness) FILTER (WHERE faithfulness IS NOT NULL AND faithfulness != 'NaN'::float)::NUMERIC, 3) AS avg_faithfulness,
+                ROUND(AVG(answer_relevancy) FILTER (WHERE answer_relevancy IS NOT NULL AND answer_relevancy != 'NaN'::float)::NUMERIC, 3) AS avg_answer_relevancy
             FROM eval_scores
         """)
     )
