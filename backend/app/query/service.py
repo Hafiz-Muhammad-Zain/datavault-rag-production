@@ -28,6 +28,8 @@ Why cosine gate instead of intent classifier?
 import time
 import json
 import uuid
+import asyncio
+import threading
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from openai import AsyncOpenAI
@@ -51,7 +53,7 @@ GPT_DIRECT_SYSTEM = (
 )
 
 
-async def process_query(request: QueryRequest, db: AsyncSession) -> QueryResponse:
+async def process_query(request: QueryRequest, db: AsyncSession, background_tasks=None) -> QueryResponse:
     """
     Full query pipeline: cosine gate → RAG or GPT direct.
     """
@@ -160,6 +162,25 @@ async def process_query(request: QueryRequest, db: AsyncSession) -> QueryRespons
         tokens_input=generated["tokens_input"],
         tokens_output=generated["tokens_output"],
     )
+
+    # ── STAGE 6: RAGAS EVAL (background) ──────────────────────────────────────
+    # Fire RAGAS with full chunk texts — NOT citation excerpts.
+    # Citation excerpts are 1-2 sentences; RAGAS needs the full chunk to verify
+    # every claim in the answer. Short contexts produce faithfulness=0 or NaN.
+    if background_tasks and generated["answer"]:
+        from app.query.evaluator import evaluate_and_store
+        from app.logs.service import get_latest_log_id
+        full_contexts = [c["chunk_text"] for c in top_chunks if c.get("chunk_text")]
+        if full_contexts:
+            log_id = await get_latest_log_id(db=db, question=request.question)
+            if log_id:
+                background_tasks.add_task(
+                    evaluate_and_store,
+                    query_log_id=log_id,
+                    question=request.question,
+                    answer=generated["answer"],
+                    contexts=full_contexts,
+                )
 
     return QueryResponse(
         answered=True,

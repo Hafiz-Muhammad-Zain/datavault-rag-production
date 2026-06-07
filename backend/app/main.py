@@ -21,7 +21,6 @@ from app.models.schemas import (
 )
 from app.ingestion.service import ingest_document
 from app.query.service import process_query
-from app.query.evaluator import evaluate_and_store
 from app.logs.service import get_recent_logs, get_system_health, get_eval_health
 
 # ── APP SETUP ──────────────────────────────────────────────────────────────
@@ -151,26 +150,9 @@ async def query(
     Returns: answer + citations + confidence score + latency breakdown
     """
     try:
-        result = await process_query(request=request, db=db)
-
-        # Fire RAGAS eval async after answering — does not block response
-        # Only evaluate RAG answers (not conversational replies — no citations to check)
-        if result.answered and result.answer_text and result.citations:
-            contexts = [c.excerpt for c in result.citations if c.excerpt]
-            if contexts and result.top_rrf_score and result.top_rrf_score < 1.0:
-                # top_rrf_score == 1.0 means it was a conversational reply (no RAG)
-                # Get the log ID we just wrote — fetch latest for this question
-                from app.logs.service import get_latest_log_id
-                log_id = await get_latest_log_id(db=db, question=request.question)
-                if log_id:
-                    background_tasks.add_task(
-                        evaluate_and_store,
-                        query_log_id=log_id,
-                        question=request.question,
-                        answer=result.answer_text,
-                        contexts=contexts,
-                    )
-
+        # background_tasks passed in so process_query can fire RAGAS
+        # with full chunk texts (not citation excerpts — those are too short for RAGAS)
+        result = await process_query(request=request, db=db, background_tasks=background_tasks)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
