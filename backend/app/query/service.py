@@ -39,6 +39,22 @@ async def process_query(request: QueryRequest, db: AsyncSession) -> QueryRespons
     # ── INTENT CLASSIFICATION ──────────────────────────────────────────
     # Ask the LLM: does this need document lookup, or is it conversational?
     # This replaces hardcoded keyword lists — the LLM understands intent.
+    # Reject very short or gibberish inputs before LLM classification
+    stripped = request.question.strip()
+    if len(stripped) < 4 or len(stripped.split()) < 2 and not any(
+        w in stripped.lower() for w in ["hi", "hey", "hello", "bye", "thanks", "help"]
+    ):
+        latency_total_ms = int((time.time() - t_total_start) * 1000)
+        return QueryResponse(
+            answered=False,
+            answer_text=None,
+            citations=[],
+            confidence_score=0.0,
+            top_rrf_score=0.0,
+            latency_total_ms=latency_total_ms,
+            refusal_reason="Please ask a compliance question about GDPR, BDSG, or DataVault policies."
+        )
+
     needs_rag = await _needs_rag(request.question, request.chat_history)
     if not needs_rag:
         reply = await _conversational_reply(request.question, request.chat_history)
