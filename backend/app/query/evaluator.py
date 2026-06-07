@@ -97,10 +97,19 @@ def _run_ragas_in_thread(question: str, answer: str, contexts: list[str], openai
             raise_exceptions=False,
         )
 
+        import math
         scores = result.to_pandas()
+        logger.info(f"RAGAS raw scores: {scores.to_dict()}")
+
+        def _clean(val):
+            if val is None:
+                return None
+            f = float(val)
+            return None if (math.isnan(f) or math.isinf(f)) else f
+
         return {
-            "faithfulness": float(scores["faithfulness"].iloc[0]) if "faithfulness" in scores.columns else None,
-            "answer_relevancy": float(scores["answer_relevancy"].iloc[0]) if "answer_relevancy" in scores.columns else None,
+            "faithfulness": _clean(scores["faithfulness"].iloc[0]) if "faithfulness" in scores.columns else None,
+            "answer_relevancy": _clean(scores["answer_relevancy"].iloc[0]) if "answer_relevancy" in scores.columns else None,
         }
     finally:
         loop.close()
