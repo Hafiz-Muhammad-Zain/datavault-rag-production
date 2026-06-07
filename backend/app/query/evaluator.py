@@ -62,7 +62,7 @@ def _run_ragas_in_thread(question: str, answer: str, contexts: list[str], openai
 
     try:
         from ragas import evaluate
-        from ragas.metrics import faithfulness, answer_relevancy
+        from ragas.metrics import Faithfulness, AnswerRelevancy
         from ragas.llms import LangchainLLMWrapper
         from ragas.embeddings import LangchainEmbeddingsWrapper
         from langchain_openai import ChatOpenAI, OpenAIEmbeddings
@@ -78,11 +78,10 @@ def _run_ragas_in_thread(question: str, answer: str, contexts: list[str], openai
             api_key=openai_api_key,
         ))
 
-        # Set llm+embeddings on each metric directly — RAGAS 0.2.x metrics are
-        # stateful and need this explicitly, passing only to evaluate() is not enough
-        faithfulness.llm = llm
-        answer_relevancy.llm = llm
-        answer_relevancy.embeddings = embeddings
+        # Instantiate fresh metric objects — RAGAS 0.2.x module-level singletons
+        # don't reliably pick up llm/embeddings set after import in a thread context
+        faithfulness_metric = Faithfulness(llm=llm)
+        answer_relevancy_metric = AnswerRelevancy(llm=llm, embeddings=embeddings)
 
         dataset = Dataset.from_dict({
             "question": [question],
@@ -92,7 +91,7 @@ def _run_ragas_in_thread(question: str, answer: str, contexts: list[str], openai
 
         result = evaluate(
             dataset=dataset,
-            metrics=[faithfulness, answer_relevancy],
+            metrics=[faithfulness_metric, answer_relevancy_metric],
             llm=llm,
             embeddings=embeddings,
             raise_exceptions=False,
