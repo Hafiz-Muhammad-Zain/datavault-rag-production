@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+
+  # PostgreSQL with pgvector extension pre-installed
+  # pgvector/pgvector:pg16 = official image, PostgreSQL 16 + pgvector
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: rag_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      # Maps container port 5432 to your local port 5432
+      # So your FastAPI app connects to localhost:5432
+      - "5432:5432"
+    volumes:
+      # Persists database data on your machine even if container restarts
+      # Without this, all data is lost when container stops
+      - postgres_data:/var/lib/postgresql/data
+      # Auto-runs schema.sql when the database is first created
+      - ../backend/app/core/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    healthcheck:
+      # Checks if PostgreSQL is ready to accept connections
+      # Docker waits for this before starting dependent services
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  # Named volume — Docker manages this on your machine
+  # Data survives container restarts and removals
+  postgres_data:

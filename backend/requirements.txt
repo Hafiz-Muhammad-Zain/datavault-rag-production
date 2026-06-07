@@ -1,0 +1,38 @@
+# API Framework
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+
+# Database
+asyncpg==0.30.0
+pgvector==0.3.6
+sqlalchemy[asyncio]==2.0.36
+
+# AI / LLM
+openai==1.57.4
+langchain==0.3.12
+langchain-openai==0.2.12
+langchain-community==0.3.12
+langchain-experimental==0.3.4
+
+# Document loaders
+pdfplumber==0.11.4
+pypdf==5.1.0
+python-multipart==0.0.19
+
+# BM25 reranking
+rank-bm25==0.2.2
+
+# RAGAS evaluation (reference-free: faithfulness + answer relevancy)
+ragas==0.2.15
+datasets==3.6.0
+
+# Validation
+pydantic==2.10.3
+pydantic-settings==2.7.0
+
+# Environment
+python-dotenv==1.0.1
+
+# Utilities
+tiktoken==0.8.0
+numpy==1.26.4

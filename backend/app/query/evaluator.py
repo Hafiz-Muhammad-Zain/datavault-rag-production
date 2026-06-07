@@ -25,33 +25,34 @@ Why background task?
    Running it inline would double response latency for the user.
    Instead: respond immediately, evaluate async, write score to DB.
 
-Why lazy imports?
-   RAGAS calls nest_asyncio.apply() at module load time, which crashes inside
-   uvicorn's event loop with "Can't patch loop of type". Importing inside the
-   function body delays that call until the background thread runs — outside
-   the main event loop — so it applies cleanly.
+Why ProcessPoolExecutor?
+   RAGAS calls nest_asyncio.apply() at import time. nest_asyncio cannot patch
+   uvloop (used by uvicorn in production) — it throws "Can't patch loop of type
+   uvloop.Loop". A ProcessPoolExecutor worker is a fresh Python process with no
+   existing event loop, so RAGAS can create and patch its own loop freely.
+   ThreadPoolExecutor shares the parent process's loop state — that's why it fails.
 """
 
 import uuid
 import logging
 import asyncio
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 from sqlalchemy import text
 from app.core.database import engine
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Single thread pool for all RAGAS evaluations — RAGAS is sync and CPU-light
-_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="ragas")
+# Process pool — each worker is a fresh Python process, no uvloop conflict
+_executor = ProcessPoolExecutor(max_workers=1)
 
 
-def _run_ragas_sync(question: str, answer: str, contexts: list[str]) -> dict:
+def _run_ragas_sync(question: str, answer: str, contexts: list[str], openai_api_key: str, embedding_model: str) -> dict:
     """
-    Synchronous RAGAS evaluation — runs in a thread pool worker.
+    Synchronous RAGAS evaluation — runs in a subprocess worker.
 
-    All RAGAS imports are inside this function so nest_asyncio.apply() fires
-    in the worker thread, not in uvicorn's main event loop.
+    Receives openai_api_key and embedding_model as plain arguments because
+    subprocess workers cannot access the parent process's settings object.
 
     Beginner example:
         question  = "What is the deadline after a data breach?"
@@ -60,7 +61,6 @@ def _run_ragas_sync(question: str, answer: str, contexts: list[str]) -> dict:
         → faithfulness=1.0 (answer claim is in context)
         → answer_relevancy=0.95 (answer directly addresses the deadline question)
     """
-    # Lazy imports — must stay inside this function
     from ragas import evaluate
     from ragas.metrics import faithfulness, answer_relevancy
     from ragas.llms import LangchainLLMWrapper
@@ -70,12 +70,12 @@ def _run_ragas_sync(question: str, answer: str, contexts: list[str]) -> dict:
 
     llm = LangchainLLMWrapper(ChatOpenAI(
         model="gpt-4o-mini",
-        api_key=settings.openai_api_key,
+        api_key=openai_api_key,
         temperature=0.0,
     ))
     embeddings = LangchainEmbeddingsWrapper(OpenAIEmbeddings(
-        model=settings.embedding_model,
-        api_key=settings.openai_api_key,
+        model=embedding_model,
+        api_key=openai_api_key,
     ))
 
     dataset = Dataset.from_dict({
@@ -120,6 +120,8 @@ async def evaluate_and_store(
             question,
             answer,
             contexts,
+            settings.openai_api_key,
+            settings.embedding_model,
         )
 
         async with engine.begin() as conn:
