@@ -30,7 +30,7 @@ A production-grade Hybrid RAG system built for DataVault GmbH — a fictional co
 ## Screenshots
 
 ### Observability Dashboard — Live RAGAS Scores, Latency Charts, Query Log
-![Observability Dashboard](preview.webp)
+![Observability Dashboard](preview%20(1).webp)
 
 > 55 total queries · 83.6% answer rate · 76.8% faithfulness · 77.6% relevancy · all scored automatically without human labeling
 
