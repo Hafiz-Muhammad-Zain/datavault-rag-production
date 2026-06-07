@@ -78,6 +78,12 @@ def _run_ragas_in_thread(question: str, answer: str, contexts: list[str], openai
             api_key=openai_api_key,
         ))
 
+        # Set llm+embeddings on each metric directly — RAGAS 0.2.x metrics are
+        # stateful and need this explicitly, passing only to evaluate() is not enough
+        faithfulness.llm = llm
+        answer_relevancy.llm = llm
+        answer_relevancy.embeddings = embeddings
+
         dataset = Dataset.from_dict({
             "question": [question],
             "answer": [answer],
