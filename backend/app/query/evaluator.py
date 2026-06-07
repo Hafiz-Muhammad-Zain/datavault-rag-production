@@ -177,4 +177,4 @@ async def evaluate_and_store(
         print(f"RAGAS_DEBUG DB insert OK: log_id={query_log_id}", flush=True)
 
     except Exception as e:
-        logger.warning(f"RAGAS eval failed for query_log_id={query_log_id}: {e}")
+        print(f"RAGAS_ERROR eval failed for query_log_id={query_log_id}: {type(e).__name__}: {e}", flush=True)
