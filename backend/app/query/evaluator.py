@@ -165,13 +165,13 @@ async def evaluate_and_store(
             await conn.execute(
                 text("""
                     INSERT INTO eval_scores (id, query_log_id, faithfulness, answer_relevancy)
-                    VALUES (:id, :query_log_id, :faithfulness, :answer_relevancy)
+                    VALUES (:id, :query_log_id, CAST(:faithfulness AS DOUBLE PRECISION), CAST(:answer_relevancy AS DOUBLE PRECISION))
                 """),
                 {
                     "id": str(uuid.uuid4()),
                     "query_log_id": query_log_id,
-                    "faithfulness": faith_val,
-                    "answer_relevancy": rel_val,
+                    "faithfulness": str(faith_val) if faith_val is not None else None,
+                    "answer_relevancy": str(rel_val) if rel_val is not None else None,
                 }
             )
         print(f"RAGAS_DEBUG DB insert OK: log_id={query_log_id}", flush=True)
