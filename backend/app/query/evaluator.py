@@ -111,8 +111,6 @@ def _run_ragas_in_thread(question: str, answer: str, contexts: list[str], openai
         rel_raw = scores["answer_relevancy"].iloc[0] if "answer_relevancy" in scores.columns else None
         faith_clean = _clean(faith_raw)
         rel_clean = _clean(rel_raw)
-        print(f"RAGAS_DEBUG scores faith={faith_raw} rel={rel_raw} cleaned={faith_clean}/{rel_clean}", flush=True)
-        print(f"RAGAS_DEBUG columns={list(scores.columns)}", flush=True)
         return {
             "faithfulness": faith_clean,
             "answer_relevancy": rel_clean,
@@ -160,7 +158,6 @@ async def evaluate_and_store(
         # insert as NULL in some SQLAlchemy versions
         faith_val = float(scores["faithfulness"]) if scores["faithfulness"] is not None else None
         rel_val = float(scores["answer_relevancy"]) if scores["answer_relevancy"] is not None else None
-        print(f"RAGAS_DEBUG inserting: log_id={query_log_id} faith={faith_val} ({type(faith_val).__name__}) rel={rel_val} ({type(rel_val).__name__})", flush=True)
         async with engine.begin() as conn:
             await conn.execute(
                 text("""
@@ -174,7 +171,7 @@ async def evaluate_and_store(
                     "answer_relevancy": str(rel_val) if rel_val is not None else None,
                 }
             )
-        print(f"RAGAS_DEBUG DB insert OK: log_id={query_log_id}", flush=True)
+        logger.info(f"RAGAS eval complete — log_id={query_log_id} faithfulness={faith_val} relevancy={rel_val}")
 
     except Exception as e:
-        print(f"RAGAS_ERROR eval failed for query_log_id={query_log_id}: {type(e).__name__}: {e}", flush=True)
+        logger.warning(f"RAGAS eval failed for query_log_id={query_log_id}: {e}")
