@@ -13,7 +13,8 @@ class Settings(BaseSettings):
     llm_model: str = "gpt-4o"
 
     # RAG pipeline settings
-    confidence_threshold: float = 0.75
+    cosine_threshold: float = 0.45   # min cosine similarity to attempt RAG (below = GPT direct)
+    confidence_threshold: float = 0.75  # kept for legacy log compatibility
     top_k_chunks: int = 20       # how many chunks to fetch from each retriever
     rerank_top_n: int = 5        # how many chunks to pass to LLM after reranking
 

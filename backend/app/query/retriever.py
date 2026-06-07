@@ -299,7 +299,8 @@ async def retrieve(
 
     top_score = merged[0]["rrf_score"] if merged else 0.0
 
-    # Return merged chunks, top score, AND the expanded query
-    # The expanded query is used by the reranker so it scores against
-    # the full search intent, not just the original short question
-    return merged, top_score, expanded
+    # Return merged chunks, top RRF score, expanded query, AND top cosine similarity
+    # top_cosine is used as the KB gate — it measures actual semantic distance
+    # RRF score is kept for logging but is rank-based (not a good gate)
+    top_cosine = semantic_results[0]["similarity_score"] if semantic_results else 0.0
+    return merged, top_score, expanded, top_cosine
