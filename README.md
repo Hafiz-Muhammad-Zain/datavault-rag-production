@@ -1,7 +1,7 @@
 # DataVault Compliance RAG — Production Hybrid RAG + Observability Dashboard
 
 **Status: COMPLETE**
-**Live Demo (Dashboard):** (https://datavault-rag-production-h75n20gp2-zainsverse-s-projects.vercel.app/logs)
+**Live Demo (Dashboard):** (https://datavault-rag-production-h75n20gp2-zainsverse-s-projects.vercel.app/logs)  
 **Niche:** Compliance / GDPR | Hallucination Prevention | Hybrid Search | Live RAGAS Evaluation
 
 ---
