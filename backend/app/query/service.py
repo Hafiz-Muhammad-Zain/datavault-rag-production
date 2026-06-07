@@ -39,22 +39,6 @@ async def process_query(request: QueryRequest, db: AsyncSession) -> QueryRespons
     # ── INTENT CLASSIFICATION ──────────────────────────────────────────
     # Ask the LLM: does this need document lookup, or is it conversational?
     # This replaces hardcoded keyword lists — the LLM understands intent.
-    # Reject very short or gibberish inputs before LLM classification
-    stripped = request.question.strip()
-    if len(stripped) < 4 or len(stripped.split()) < 2 and not any(
-        w in stripped.lower() for w in ["hi", "hey", "hello", "bye", "thanks", "help"]
-    ):
-        latency_total_ms = int((time.time() - t_total_start) * 1000)
-        return QueryResponse(
-            answered=False,
-            answer_text=None,
-            citations=[],
-            confidence_score=0.0,
-            top_rrf_score=0.0,
-            latency_total_ms=latency_total_ms,
-            refusal_reason="Please ask a compliance question about GDPR, BDSG, or DataVault policies."
-        )
-
     needs_rag = await _needs_rag(request.question, request.chat_history)
     if not needs_rag:
         reply = await _conversational_reply(request.question, request.chat_history)
@@ -250,10 +234,12 @@ from openai import AsyncOpenAI as _AsyncOpenAI
 _openai_client = _AsyncOpenAI(api_key=settings.openai_api_key)
 
 CONVERSATIONAL_SYSTEM = (
-    "You are a friendly compliance assistant for DataVault GmbH, specializing in GDPR, "
-    "German data protection law (BDSG), and DataVault's internal policies. "
-    "Respond naturally and warmly to casual conversation. Be concise and human. "
-    "If asked what you can do or who you are, explain your compliance expertise briefly."
+    "You are a compliance assistant for DataVault GmbH, specializing in GDPR, "
+    "German data protection law (BDSG), and DataVault's internal data protection policies. "
+    "For greetings, respond briefly and direct the user to ask a compliance question. "
+    "For gibberish, single words, or clearly off-topic input, respond in one sentence: "
+    "acknowledge you didn't understand and invite them to ask a compliance question. "
+    "Never engage playfully or warmly with nonsense input. Be concise."
 )
 
 
