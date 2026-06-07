@@ -25,34 +25,30 @@ Why background task?
    Running it inline would double response latency for the user.
    Instead: respond immediately, evaluate async, write score to DB.
 
-Why ProcessPoolExecutor?
+Why new event loop in thread?
    RAGAS calls nest_asyncio.apply() at import time. nest_asyncio cannot patch
    uvloop (used by uvicorn in production) — it throws "Can't patch loop of type
-   uvloop.Loop". A ProcessPoolExecutor worker is a fresh Python process with no
-   existing event loop, so RAGAS can create and patch its own loop freely.
-   ThreadPoolExecutor shares the parent process's loop state — that's why it fails.
+   uvloop.Loop". The fix: run RAGAS in a plain thread but give it a FRESH asyncio
+   event loop (not uvloop) via asyncio.new_event_loop(). This loop has no existing
+   type so nest_asyncio patches it cleanly.
 """
 
 import uuid
 import logging
 import asyncio
-from concurrent.futures import ProcessPoolExecutor
+import threading
 from sqlalchemy import text
 from app.core.database import engine
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Process pool — each worker is a fresh Python process, no uvloop conflict
-_executor = ProcessPoolExecutor(max_workers=1)
 
-
-def _run_ragas_sync(question: str, answer: str, contexts: list[str], openai_api_key: str, embedding_model: str) -> dict:
+def _run_ragas_in_thread(question: str, answer: str, contexts: list[str], openai_api_key: str, embedding_model: str) -> dict:
     """
-    Synchronous RAGAS evaluation — runs in a subprocess worker.
+    Run RAGAS in a thread with a fresh asyncio event loop.
 
-    Receives openai_api_key and embedding_model as plain arguments because
-    subprocess workers cannot access the parent process's settings object.
+    Fresh loop = no uvloop = nest_asyncio can patch it cleanly.
 
     Beginner example:
         question  = "What is the deadline after a data breach?"
@@ -61,42 +57,48 @@ def _run_ragas_sync(question: str, answer: str, contexts: list[str], openai_api_
         → faithfulness=1.0 (answer claim is in context)
         → answer_relevancy=0.95 (answer directly addresses the deadline question)
     """
-    from ragas import evaluate
-    from ragas.metrics import faithfulness, answer_relevancy
-    from ragas.llms import LangchainLLMWrapper
-    from ragas.embeddings import LangchainEmbeddingsWrapper
-    from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-    from datasets import Dataset
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
 
-    llm = LangchainLLMWrapper(ChatOpenAI(
-        model="gpt-4o-mini",
-        api_key=openai_api_key,
-        temperature=0.0,
-    ))
-    embeddings = LangchainEmbeddingsWrapper(OpenAIEmbeddings(
-        model=embedding_model,
-        api_key=openai_api_key,
-    ))
+    try:
+        from ragas import evaluate
+        from ragas.metrics import faithfulness, answer_relevancy
+        from ragas.llms import LangchainLLMWrapper
+        from ragas.embeddings import LangchainEmbeddingsWrapper
+        from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+        from datasets import Dataset
 
-    dataset = Dataset.from_dict({
-        "question": [question],
-        "answer": [answer],
-        "contexts": [contexts],
-    })
+        llm = LangchainLLMWrapper(ChatOpenAI(
+            model="gpt-4o-mini",
+            api_key=openai_api_key,
+            temperature=0.0,
+        ))
+        embeddings = LangchainEmbeddingsWrapper(OpenAIEmbeddings(
+            model=embedding_model,
+            api_key=openai_api_key,
+        ))
 
-    result = evaluate(
-        dataset=dataset,
-        metrics=[faithfulness, answer_relevancy],
-        llm=llm,
-        embeddings=embeddings,
-        raise_exceptions=False,
-    )
+        dataset = Dataset.from_dict({
+            "question": [question],
+            "answer": [answer],
+            "contexts": [contexts],
+        })
 
-    scores = result.to_pandas()
-    return {
-        "faithfulness": float(scores["faithfulness"].iloc[0]) if "faithfulness" in scores.columns else None,
-        "answer_relevancy": float(scores["answer_relevancy"].iloc[0]) if "answer_relevancy" in scores.columns else None,
-    }
+        result = evaluate(
+            dataset=dataset,
+            metrics=[faithfulness, answer_relevancy],
+            llm=llm,
+            embeddings=embeddings,
+            raise_exceptions=False,
+        )
+
+        scores = result.to_pandas()
+        return {
+            "faithfulness": float(scores["faithfulness"].iloc[0]) if "faithfulness" in scores.columns else None,
+            "answer_relevancy": float(scores["answer_relevancy"].iloc[0]) if "answer_relevancy" in scores.columns else None,
+        }
+    finally:
+        loop.close()
 
 
 async def evaluate_and_store(
@@ -113,16 +115,26 @@ async def evaluate_and_store(
         return
 
     try:
-        loop = asyncio.get_event_loop()
-        scores = await loop.run_in_executor(
-            _executor,
-            _run_ragas_sync,
-            question,
-            answer,
-            contexts,
-            settings.openai_api_key,
-            settings.embedding_model,
-        )
+        result_holder = {}
+        error_holder = {}
+
+        def thread_target():
+            try:
+                result_holder["scores"] = _run_ragas_in_thread(
+                    question, answer, contexts,
+                    settings.openai_api_key, settings.embedding_model
+                )
+            except Exception as e:
+                error_holder["error"] = e
+
+        t = threading.Thread(target=thread_target, daemon=True)
+        t.start()
+        await asyncio.get_event_loop().run_in_executor(None, t.join)
+
+        if "error" in error_holder:
+            raise error_holder["error"]
+
+        scores = result_holder["scores"]
 
         async with engine.begin() as conn:
             await conn.execute(
