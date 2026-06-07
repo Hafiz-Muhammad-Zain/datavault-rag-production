@@ -28,7 +28,7 @@ from app.logs.service import get_recent_logs, get_system_health, get_eval_health
 app = FastAPI(
     title="DataVault Compliance RAG API",
     description="Production RAG system with hybrid search, hallucination prevention, and live observability.",
-    version="1.0.0",
+    version="1.0.1",
     docs_url="/docs",       # Swagger UI at /docs
     redoc_url="/redoc",     # ReDoc UI at /redoc
 )
@@ -55,7 +55,7 @@ async def health_check():
     return HealthResponse(
         status="ok" if db_ok else "degraded",
         database=db_ok,
-        version="1.0.0"
+        version="1.0.1"
     )
 
 
