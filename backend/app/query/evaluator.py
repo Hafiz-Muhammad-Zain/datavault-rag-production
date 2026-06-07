@@ -83,10 +83,11 @@ def _run_ragas_in_thread(question: str, answer: str, contexts: list[str], openai
         faithfulness_metric = Faithfulness(llm=llm)
         answer_relevancy_metric = AnswerRelevancy(llm=llm, embeddings=embeddings)
 
+        # RAGAS 0.2.x uses user_input/response/retrieved_contexts as column names
         dataset = Dataset.from_dict({
-            "question": [question],
-            "answer": [answer],
-            "contexts": [contexts],
+            "user_input": [question],
+            "response": [answer],
+            "retrieved_contexts": [contexts],
         })
 
         result = evaluate(
