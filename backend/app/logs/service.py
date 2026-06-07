@@ -99,11 +99,19 @@ async def get_eval_health(db: AsyncSession) -> dict:
             WHERE evaluated_at >= NOW() - INTERVAL '24 hours'
         """)
     )
+    import math
     row = result.mappings().one()
+
+    def safe_float(val):
+        if val is None:
+            return None
+        f = float(val)
+        return None if math.isnan(f) or math.isinf(f) else f
+
     return {
         "total_evaluated": row["total_evaluated"] or 0,
-        "avg_faithfulness": float(row["avg_faithfulness"]) if row["avg_faithfulness"] else None,
-        "avg_answer_relevancy": float(row["avg_answer_relevancy"]) if row["avg_answer_relevancy"] else None,
+        "avg_faithfulness": safe_float(row["avg_faithfulness"]),
+        "avg_answer_relevancy": safe_float(row["avg_answer_relevancy"]),
     }
 
 
