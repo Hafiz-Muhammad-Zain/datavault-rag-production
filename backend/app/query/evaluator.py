@@ -107,9 +107,15 @@ def _run_ragas_in_thread(question: str, answer: str, contexts: list[str], openai
             f = float(val)
             return None if (math.isnan(f) or math.isinf(f)) else f
 
+        faith_raw = scores["faithfulness"].iloc[0] if "faithfulness" in scores.columns else None
+        rel_raw = scores["answer_relevancy"].iloc[0] if "answer_relevancy" in scores.columns else None
+        faith_clean = _clean(faith_raw)
+        rel_clean = _clean(rel_raw)
+        logger.info(f"RAGAS raw scores — faithfulness={faith_raw} relevancy={rel_raw} → cleaned={faith_clean}/{rel_clean}")
+        logger.info(f"RAGAS columns: {list(scores.columns)}")
         return {
-            "faithfulness": _clean(scores["faithfulness"].iloc[0]) if "faithfulness" in scores.columns else None,
-            "answer_relevancy": _clean(scores["answer_relevancy"].iloc[0]) if "answer_relevancy" in scores.columns else None,
+            "faithfulness": faith_clean,
+            "answer_relevancy": rel_clean,
         }
     finally:
         loop.close()
